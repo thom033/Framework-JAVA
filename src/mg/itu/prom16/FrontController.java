@@ -6,6 +6,28 @@ import jakarta.servlet.http.*;
 
 public class FrontController extends HttpServlet {
 
+    private boolean checked = false;
+    private List<Class<?>> controllerClasses = new ArrayList<>();
+
+    public void findControllerClasses() {
+        String controllerPackage = getServletConfig().getInitParameter("controller");
+        if (controllerPackage == null || controllerPackage.isEmpty()) {
+            System.err.println("Controller package not specified");
+            return;
+        }
+
+        String path = controllerPackage.replace('.', '/');
+        File directory = new File(getServletContext().getRealPath("/WEB-INF/classes/" + path));
+
+        if (!directory.exists() || !directory.isDirectory()) {
+            System.err.println("Package directory not found: " + directory.getAbsolutePath());
+            return;
+        }
+
+        findClassesInDirectory(controllerPackage, directory);
+        checked = true;
+    }
+    
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
