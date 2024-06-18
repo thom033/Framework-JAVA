@@ -1,0 +1,17 @@
+Sprint 1
+    Objectif: Avoir la liste de classe annoter comme controllers dans le front controller 
+
+    To do:
+    -Creer classe AnnotationController
+    -Annoter mes controlleurs avec annotationController 
+    -Mettre controller dans les package com.controller
+ 
+    -Modifier la classe FrontController :
+        Ajouter un attribut checked initialisé à false.
+        Implémenter une méthode pour parcourir toutes les classes du package, 
+            si elles sont annotées avec Controller, 
+            ajouter à une liste.
+        afficher la liste des classes contrôleurs dasns la fonctio processed request.
+            
+         
+
