@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.annotation.Controller;
-import com.annotation.GET;
+import com.annotation.Get;
 import com.annotation.Param;
 
 import jakarta.servlet.http.HttpServletRequest;
