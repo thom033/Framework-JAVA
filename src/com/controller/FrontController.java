@@ -1,14 +1,5 @@
 package com.controller;
 
-import com.annotation.AnnotationController;
-import com.utilFrame.Mapping;
-import com.annotation.GET;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -20,14 +11,46 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.annotation.AnnotationController;
+import com.annotation.GET;
+
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import util.Mapping;
+import util.ModelView;
+
 public class FrontController extends HttpServlet {
 
-    private Map<String, Mapping> liens = new HashMap<>();
-    private List<Class<?>> controllers = new ArrayList<>();
+    private Map<String , Mapping> url_mapping;
+    private String _package;
+    private ArrayList<String> url_exceptions ;
 
     public void init() throws ServletException {
-        super.init();
-        findControllerClasses();
+        try {            
+            this.url_mapping = new HashMap<>();
+            this.url_exceptions =  new ArrayList<>();
+            this.scan();
+        } catch (Exception e) {
+            this.url_exceptions.add(e.getMessage());
+        }
+    }
+
+    protected void scan() throws Exception {
+        String p = this.getInitParameter("app.controllers.packageName");
+        if (p == null || p.isEmpty()) {
+            throw new ClassNotFoundException("Controller package not specified");
+        }
+        p = p.replace(".","/");
+        File directory = new File(getServletContext().getRealPath("/WEB-INF/classes/" + p));
+
+        if (!directory.exists() || !directory.isDirectory()) {
+            throw new ClassNotFoundException("Controller Package \"" + p + "\" not Found");
+        }
+        this._package = p;
+        Reflect.scanFindClasses(this._package, directory, this.url_mapping, this.url_exceptions);
     }
 
     public void findControllerClasses() {
