@@ -1,0 +1,39 @@
+{
+	"folders": [
+		{
+			"name": "Framework",
+			"path": "../../../../../Sprint/Framework"
+		},
+		{
+			"name": "framework",
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../Test"
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.debug.settings.onBuildFailureProceed": true,
+		"java.project.referencedLibraries": [
+			"lib/**/*.jar",
+			"serveur/lib/jlayer-1.0.1.jar",
+			"serveur/lib/jna-5.2.0.jar",
+			"serveur/lib/jna-platform-5.2.0.jar",
+			"serveur/lib/vlcj-4.7.1.jar",
+			"serveur/lib/vlcj-natives-4.1.0.jar",
+			"serveur/lib/filters-2.0.235.jar",
+			"serveur/lib/swing-worker-1.1.jar",
+			"serveur/lib/swingx-1.6.1.jar",
+			"serveur/lib/TimingFramework-0.55.jar",
+			"serveur/lib/flatlaf-3.3.jar",
+			"serveur/lib/flatlaf-intellij-themes-3.3.jar",
+			"c:\\xampp\\tomcat\\lib\\servlet-api.jar",
+			"e:\\app\\itu\\product\\11.2.0\\dbhome_1\\jdbc\\lib\\postgresql-42.6.0.jar",
+			"opencv-java-x86_64-linux-2.3.0.jar",
+			"opencv-4.0.1-1.4.4.jar"
+		],
+		"dotnet.defaultSolution": "Nify/Nify.sln",
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}
