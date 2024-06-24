@@ -1,4 +1,4 @@
-package com.utilFrame;
+package com.util;
 
 import java.util.HashMap;
 

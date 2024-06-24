@@ -1,4 +1,4 @@
-package com.utilFrame;
+package com.util;
 public class Mapping {
     String ClassName;
     String MethodName;
