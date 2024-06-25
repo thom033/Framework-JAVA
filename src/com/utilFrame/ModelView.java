@@ -1,4 +1,4 @@
-package com.controller;
+package com.utilFrame;
 
 import java.util.HashMap;
 
@@ -9,6 +9,9 @@ public class ModelView {
     public ModelView(String url, HashMap<String, Object> data) {
         setUrl(url);
         setData(data);
+    }
+    public void addObject(String key, Object value) {
+        this.data.put(key, value);
     }
 
     public ModelView(String url) {
@@ -35,3 +38,4 @@ public class ModelView {
         this.data.put(nom,value);
     }
 }
+

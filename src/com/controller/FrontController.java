@@ -1,100 +1,105 @@
 package com.controller;
 
-import java.io.File;
+
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import jakarta.servlet.RequestDispatcher;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import util.Mapping;
-import util.ModelView;
+import jakarta.servlet.RequestDispatcher;
+
+import com.annotation.AnnotationController;
+import com.annotation.ParamAnnotation;
+import com.annotation.ParamObjectAnnotation;
+
+import java.lang.reflect.*;
+
+import com.utilFrame.Mapping;
+import com.utilFrame.Function;
+import com.utilFrame.ModelView;
 
 public class FrontController extends HttpServlet {
+    private List<String> controllers;
+    private HashMap<String, Mapping> map;
 
-    private Map<String , Mapping> url_mapping;
-    private String _package;
-    private ArrayList<String> url_exceptions ;
-
+    @Override
     public void init() throws ServletException {
-        try {            
-            this.url_mapping = new HashMap<>();
-            this.url_exceptions =  new ArrayList<>();
-            this.scan();
-        } catch (Exception e) {
-            this.url_exceptions.add(e.getMessage());
-        }
-    }
-
-    protected void scan() throws Exception {
-        String p = this.getInitParameter("app.controllers.packageName");
-        if (p == null || p.isEmpty()) {
-            throw new ClassNotFoundException("Controller package not specified");
-        }
-        p = p.replace(".","/");
-        File directory = new File(getServletContext().getRealPath("/WEB-INF/classes/" + p));
-
-        if (!directory.exists() || !directory.isDirectory()) {
-            throw new ClassNotFoundException("Controller Package \"" + p + "\" not Found");
-        }
-        this._package = p;
-        Reflect.scanFindClasses(this._package, directory, this.url_mapping, this.url_exceptions);
-    }
-    protected void processrequest (HttpServletRequest req, HttpServletResponse resp) {
-        PrintWriter out = null;
-        String context_path =  req.getContextPath();
-        String uri =  req.getRequestURI();
-        List<String> exceptions = new ArrayList<>();
+        String packageToScan = this.getInitParameter("controller");
         try {
-            out = resp.getWriter();            
-            Mapping m = this.url_mapping.get(uri.replace(context_path, ""));    // get mapping matching with the url 
-            if(m != null){
-                Object response = Reflect.excetudeMethod(m , req, resp);
-                if (response instanceof String) {
-                    Tools.printMessage((String) response, out);
-                }
-                else if(response instanceof ModelView){
-                    ModelView model = (ModelView) response;
-                    String url = model.getUrl();
-                    RequestDispatcher dispacther = req.getRequestDispatcher(url);   // redirect to the url page.jsp
-                    for (String key : model.getData().keySet()) {                   // set data in model in request attribute
-                        req.setAttribute(key, model.getData().get(key));
-                    }
-                    dispacther.forward(req, resp);
-                } else {
-                    exceptions.add("The return type of the method is not supported.");
-                }           
-            }
-            else { // no mapping matching with the url 
-                exceptions.add("404 Not Found");
-            }
+            this.controllers = new Function().getAllclazzsStringAnnotation(packageToScan, AnnotationController.class);
+            this.map = new Function().scanControllersMethods(this.controllers);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        catch (Exception e) {
-            exceptions.add(e.getMessage());
-        }finally {
-            if (out != null) {
-                List<String> list = new ArrayList<>();
-                list.addAll( this.url_exceptions);
-                list.addAll(exceptions);
-                if (!list.isEmpty()) {
-                    Tools.formatExceptionsAsHtml(list, out);
-                    return;
-                }
-                out.close();
-            }
         }
-    }
-    
+
+    @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processrequest(req, resp);
     }
 
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        processrequest(req, resp);
+        processRequest(req, resp);
+    }
+
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+        String path = new Function().getURIWithoutContextPath(request);
+
+        if (path.contains("?")) {
+            int index = path.indexOf("?");
+            path = path.substring(0, index);
+        }
+
+        if (map.containsKey(path)) {
+            Mapping m = map.get(path);
+            try {
+                Class<?> clazz = Class.forName(m.getClassName());
+                Method[] methods = clazz.getDeclaredMethods();
+                Method targetMethod = null;
+
+                for (Method method : methods) {
+                    if (method.getName().equals(m.getMethodName())) {
+                        targetMethod = method;
+                        break;
+                    }
+                }
+
+                if (targetMethod != null) {
+                    Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class,
+                            ParamObjectAnnotation.class);
+                    Object result = targetMethod.invoke(clazz.newInstance(), params);
+
+                    if (result instanceof String) {
+                        out.println(
+                                "Resultat de l'execution de la méthode " + " " + m.getMethodName() + " est " + result);
+                    } else if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        String destinationUrl = modelView.getUrl();
+                        HashMap<String, Object> data = modelView.getData();
+                        for (String key : data.keySet()) {
+                            request.setAttribute(key, data.get(key));
+                            System.out.println(data.get(key));
+                        }
+                        RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
+                        dispatcher.forward(request, response);
+                    } else {
+                        out.println("Le type de retour n'est ni un String ni un ModelView");
+                    }
+                } else {
+                    out.println("Méthode non trouvée : " + m.getMethodName());
+                }
+            } catch (Exception e) {
+                out.println("Erreur lors de l'exécution de la méthode : " + e.getMessage());
+                e.printStackTrace(out);
+            }
+        } else {
+            out.println("404 NOT FOUND");
+        }
     }
 }

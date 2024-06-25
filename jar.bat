@@ -23,7 +23,7 @@ REM Create the JAR file
 jar cvf "%JAR_FILE%" *
 
 REM Copy the JAR file to the target directory
-copy "%JAR_FILE%" "E:\S4\Web-Dynamique\GitLab\Test\lib"
+copy "%JAR_FILE%" "E:\S4\Web-Dynamique\GitLab\Sprint0Test\lib"
 
 echo JAR creation and copy completed.
 pause
