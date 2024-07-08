@@ -1,6 +1,5 @@
 package com.controller;
 
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -39,11 +38,24 @@ public class FrontController extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        processrequest(req, resp);
+        processRequest(req, resp);
     }
 
+    @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
+    }
+
+    public boolean test_connect(Method m) {
+        Parameter[] parameters = m.getParameters();
+        // Iterate over each parameter
+        for (Parameter parameter : parameters) {
+            boolean isAnnotated = parameter.isAnnotationPresent(ParamAnnotation.class);  
+            if (!isAnnotated) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -66,13 +78,19 @@ public class FrontController extends HttpServlet {
                 for (Method method : methods) {
                     if (method.getName().equals(m.getMethodName())) {
                         targetMethod = method;
+                        if (!test_connect(targetMethod)) {
+                            out.println("ETU002603, UN parametre n'est pas annoter !");
+                            return;
+                        }
                         break;
                     }
                 }
 
                 if (targetMethod != null) {
+
                     Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class,
                             ParamObjectAnnotation.class);
+                
                     Object result = targetMethod.invoke(clazz.newInstance(), params);
 
                     if (result instanceof String) {
