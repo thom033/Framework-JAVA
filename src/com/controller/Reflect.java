@@ -15,13 +15,13 @@ import com.annotation.Param;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import util.Mapping;
+import com.utilFrame.Mapping;
 
 public class Reflect {
     // excecute methode in Mapping
     public static Object excetudeMethod(Mapping m, HttpServletRequest req, HttpServletResponse resp) throws Exception{
-        Class<?> clazz = Class.forName(m.getController());
-        Method method = Reflect.getMethode(clazz, m.getMethod());
+        Class<?> clazz = Class.forName(m.getClassName());
+        Method method = Reflect.getMethode(clazz, m.getMethodName());
         Object obj = clazz.newInstance();
         List<String> paramValues = new ArrayList<>();
         for (Parameter methodParam : method.getParameters()) {
@@ -80,7 +80,7 @@ public class Reflect {
     public static void checkDucplicateUrl(Map<String, Mapping> url_mapping, Get getmapping, ArrayList<String> exceptions, Class<?> clazz, Method method ){
         if (!getmapping.url().isEmpty()) {
             if (url_mapping.containsKey(getmapping.url())) {
-                exceptions.add("Duplicated url \"" +getmapping.url()+"\" in "+ clazz.getName() + " and "+ url_mapping.get(getmapping.url()).getController());
+                exceptions.add("Duplicated url \"" +getmapping.url()+"\" in "+ clazz.getName() + " and "+ url_mapping.get(getmapping.url()).getClassName());
             }else{
                 url_mapping.put( method.getAnnotation(Get.class).url() , new Mapping(method.getName(), clazz.getName()));
             }               
