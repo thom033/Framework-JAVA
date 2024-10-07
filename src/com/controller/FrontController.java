@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.RequestDispatcher;
 
 import com.annotation.AnnotationController;
+import com.annotation.Get;
+import com.annotation.POST;
 import com.annotation.ParamAnnotation;
 import com.annotation.ParamObjectAnnotation;
 import com.annotation.RestApi;
@@ -43,6 +45,9 @@ public class FrontController extends HttpServlet {
         processRequest(req, resp);
     }
 
+
+
+
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
@@ -61,10 +66,10 @@ public class FrontController extends HttpServlet {
             Mapping m = map.get(path);
             try {
                 Class<?> clazz = Class.forName(m.getClassName());
-                Method[] methods = clazz.getDeclaredMethods();
                 Method targetMethod = null;
 
-                for (Method method : methods) {
+            // Find the method matching the Mapping
+            for (Method method : clazz.getDeclaredMethods()) {
                     if (method.getName().equals(m.getMethodName())) {
                         targetMethod = method;
                         break;
@@ -72,31 +77,34 @@ public class FrontController extends HttpServlet {
                 }
 
                 if (targetMethod != null) {
-                    Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class,
-                            ParamObjectAnnotation.class);
-                    Object controllerInstance = clazz.newInstance();
+                // Check for GET/POST annotation and HTTP method compatibility
+                if (targetMethod.isAnnotationPresent(POST.class) && !request.getMethod().equals("POST")) {
+                    throw new ServletException("This method must be called via POST.");
+                }
+                if (targetMethod.isAnnotationPresent(Get.class) && !request.getMethod().equals("GET")) {
+                    throw new ServletException("This method must be called via GET.");
+                }
 
-                    // Gestion de MySession
-                    Field[] fields = clazz.getDeclaredFields();
-                    for (Field field : fields) {
+                // Get the parameters for the method
+                Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class, ParamObjectAnnotation.class);
+                Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
+
+                // Inject MySession if the field is present in the controller class
+                for (Field field : clazz.getDeclaredFields()) {
                         if (field.getType().equals(MySession.class)) {
                             field.setAccessible(true);
                             field.set(controllerInstance, new MySession(request.getSession()));
                         }
                     }
 
-                    //  @RestApi
+                // If the method is annotated with @RestApi, return JSON response
                     if (targetMethod.isAnnotationPresent(RestApi.class)) {
-                        
                             Object result = targetMethod.invoke(controllerInstance, params);
-
-                            // Configurer JSON
                             response.setContentType("application/json");
                             response.setCharacterEncoding("UTF-8");
                             Gson gson = new Gson();
                             String jsonResponse;
 
-            
                             if (result instanceof ModelView) {
                                 ModelView modelView = (ModelView) result;
                                 jsonResponse = gson.toJson(modelView.getData());
@@ -104,37 +112,38 @@ public class FrontController extends HttpServlet {
                                 jsonResponse = gson.toJson(result);
                             }
 
-                            // Envoyer la réponse JSON
                             out.print(jsonResponse);
                             out.flush();
-
                     } else {
-                            // Gestion normale sans @RestApi
+                    // Standard processing for non-RestApi methods
                             Object result = targetMethod.invoke(controllerInstance, params);
 
                     if (result instanceof String) {
-                        out.println(
-                                "Resultat de l'execution de la méthode " + " " + m.getMethodName() + " est " + result);
+                        out.println("Result of method execution: " + result);
                     } else if (result instanceof ModelView) {
                         ModelView modelView = (ModelView) result;
                         String destinationUrl = modelView.getUrl();
                         HashMap<String, Object> data = modelView.getData();
+
+                        // Set attributes for JSP forwarding
                         for (String key : data.keySet()) {
                             request.setAttribute(key, data.get(key));
                         }
 
-                                // Dispatch vers la vue JSP
+                        // Forward to the JSP page
                         RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
                         dispatcher.forward(request, response);
                     } else {
-                        out.println("Le type de retour n'est ni un String ni un ModelView");
+                        out.println("The return type is neither String nor ModelView");
                     }
                     }
                 } else {
-                    out.println("Méthode non trouvée : " + m.getMethodName());
+                out.println("Method not found: " + m.getMethodName());
                 }
+        } catch (ClassNotFoundException e) {
+            out.println("Class not found: " + e.getMessage());
             } catch (Exception e) {
-                out.println("Erreur lors de l'exécution de la méthode : " + e.getMessage());
+            e.printStackTrace(out); // Provide full exception stack trace for better debugging
             }
         } else {
             out.println("404 NOT FOUND");
@@ -170,7 +179,7 @@ public class FrontController extends HttpServlet {
     //                         ParamObjectAnnotation.class);
     //                 Object controllerInstance = clazz.newInstance();
 
-    //                 // Vérifier et initialiser MySession pour les controllers qui en ont besoin
+    //                 // Gestion de MySession
     //                 Field[] fields = clazz.getDeclaredFields();
     //                 for (Field field : fields) {
     //                     if (field.getType().equals(MySession.class)) {
@@ -179,23 +188,50 @@ public class FrontController extends HttpServlet {
     //                     }
     //                 }
 
-    //                 Object result = targetMethod.invoke(controllerInstance, params);
+    //                 //  @RestApi
+    //                 if (targetMethod.isAnnotationPresent(RestApi.class)) {
+                        
+    //                         Object result = targetMethod.invoke(controllerInstance, params);
 
-    //                 if (result instanceof String) {
-    //                     out.println(
-    //                             "Resultat de l'execution de la méthode " + " " + m.getMethodName() + " est " + result);
-    //                 } else if (result instanceof ModelView) {
-    //                     ModelView modelView = (ModelView) result;
-    //                     String destinationUrl = modelView.getUrl();
-    //                     HashMap<String, Object> data = modelView.getData();
-    //                     for (String key : data.keySet()) {
-    //                         request.setAttribute(key, data.get(key));
-    //                         System.out.println(data.get(key));
-    //                     }
-    //                     RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
-    //                     dispatcher.forward(request, response);
+    //                         // Configurer JSON
+    //                         response.setContentType("application/json");
+    //                         response.setCharacterEncoding("UTF-8");
+    //                         Gson gson = new Gson();
+    //                         String jsonResponse;
+
+            
+    //                         if (result instanceof ModelView) {
+    //                             ModelView modelView = (ModelView) result;
+    //                             jsonResponse = gson.toJson(modelView.getData());
+    //                         } else {
+    //                             jsonResponse = gson.toJson(result);
+    //                         }
+
+    //                         // Envoyer la réponse JSON
+    //                         out.print(jsonResponse);
+    //                         out.flush();
+
     //                 } else {
-    //                     out.println("Le type de retour n'est ni un String ni un ModelView");
+    //                         // Gestion normale sans @RestApi
+    //                         Object result = targetMethod.invoke(controllerInstance, params);
+
+    //                         if (result instanceof String) {
+    //                             out.println(
+    //                                     "Resultat de l'execution de la méthode " + " " + m.getMethodName() + " est " + result);
+    //                         } else if (result instanceof ModelView) {
+    //                             ModelView modelView = (ModelView) result;
+    //                             String destinationUrl = modelView.getUrl();
+    //                             HashMap<String, Object> data = modelView.getData();
+    //                             for (String key : data.keySet()) {
+    //                                 request.setAttribute(key, data.get(key));
+    //                             }
+
+    //                             // Dispatch vers la vue JSP
+    //                             RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
+    //                             dispatcher.forward(request, response);
+    //                         } else {
+    //                             out.println("Le type de retour n'est ni un String ni un ModelView");
+    //                         }
     //                 }
     //             } else {
     //                 out.println("Méthode non trouvée : " + m.getMethodName());
@@ -206,7 +242,8 @@ public class FrontController extends HttpServlet {
     //     } else {
     //         out.println("404 NOT FOUND");
     //     }
-    // }
+    //     }
+
 
 
 
