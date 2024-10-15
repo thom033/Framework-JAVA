@@ -185,30 +185,27 @@ public class FrontController extends HttpServlet {
                             Object result = targetMethod.invoke(controllerInstance, params);
                             response.setContentType("application/json");
                             response.setCharacterEncoding("UTF-8");
-                            Gson gson = new Gson();
-                            String jsonResponse;
-
-                            if (result instanceof ModelView) {
-                                ModelView modelView = (ModelView) result;
-                                jsonResponse = gson.toJson(modelView.getData());
-                            } else {
-                                jsonResponse = gson.toJson(result);
-                            }
-
+            String jsonResponse = (result instanceof ModelView) ? gson.toJson(((ModelView) result).getData()) : gson.toJson(result);
+            PrintWriter out = response.getWriter();
                             out.print(jsonResponse);
                             out.flush();
-                    } else {
-                    // Standard processing for non-RestApi methods
+        } catch (IllegalAccessException e) {
+            throw new InvocationTargetException(e, "Illegal access during method invocation");
+        }
+    }
+
+    private void handleStandardResponse(HttpServletResponse response, HttpServletRequest request, Method targetMethod, Object[] params, Object controllerInstance) throws IOException, InvocationTargetException, ServletException {
+        try {
                             Object result = targetMethod.invoke(controllerInstance, params);
 
                     if (result instanceof String) {
+                PrintWriter out = response.getWriter();
                         out.println("Result of method execution: " + result);
                     } else if (result instanceof ModelView) {
                         ModelView modelView = (ModelView) result;
                         String destinationUrl = modelView.getUrl();
                         HashMap<String, Object> data = modelView.getData();
 
-                        // Set attributes for JSP forwarding
                         for (String key : data.keySet()) {
                             request.setAttribute(key, data.get(key));
                         }
@@ -217,118 +214,26 @@ public class FrontController extends HttpServlet {
                         RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
                         dispatcher.forward(request, response);
                     } else {
+                PrintWriter out = response.getWriter();
                         out.println("The return type is neither String nor ModelView");
                     }
-                    }
-                } else {
-                out.println("Method not found: " + m.getMethodName());
-                }
-        } catch (ClassNotFoundException e) {
-            out.println("Class not found: " + e.getMessage());
-            } catch (Exception e) {
-            e.printStackTrace(out); // Provide full exception stack trace for better debugging
-            }
-        } else {
-            out.println("404 NOT FOUND");
+        } catch (IllegalAccessException e) {
+            throw new InvocationTargetException(e, "Illegal access during method invocation");
         }
     }
 
-    // protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-    //         throws ServletException, IOException {
-    //     PrintWriter out = response.getWriter();
-    //     String path = new Function().getURIWithoutContextPath(request);
+    private void handleInternalServerError(HttpServletResponse response, String errorMessage) throws IOException {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        PrintWriter out = response.getWriter();
+        out.println("Internal Server Error: " + errorMessage);
+    }
 
-    //     if (path.contains("?")) {
-    //         int index = path.indexOf("?");
-    //         path = path.substring(0, index);
-    //     }
-
-    //     if (map.containsKey(path)) {
-    //         Mapping m = map.get(path);
-    //         try {
-    //             Class<?> clazz = Class.forName(m.getClassName());
-    //             Method[] methods = clazz.getDeclaredMethods();
-    //             Method targetMethod = null;
-
-    //             for (Method method : methods) {
-    //                 if (method.getName().equals(m.getMethodName())) {
-    //                     targetMethod = method;
-    //                     break;
-    //                 }
-    //             }
-
-    //             if (targetMethod != null) {
-    //                 Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class,
-    //                         ParamObjectAnnotation.class);
-    //                 Object controllerInstance = clazz.newInstance();
-
-    //                 // Gestion de MySession
-    //                 Field[] fields = clazz.getDeclaredFields();
-    //                 for (Field field : fields) {
-    //                     if (field.getType().equals(MySession.class)) {
-    //                         field.setAccessible(true);
-    //                         field.set(controllerInstance, new MySession(request.getSession()));
-    //                     }
-    //                 }
-
-    //                 //  @RestApi
-    //                 if (targetMethod.isAnnotationPresent(RestApi.class)) {
-                        
-    //                         Object result = targetMethod.invoke(controllerInstance, params);
-
-    //                         // Configurer JSON
-    //                         response.setContentType("application/json");
-    //                         response.setCharacterEncoding("UTF-8");
-    //                         Gson gson = new Gson();
-    //                         String jsonResponse;
-
-            
-    //                         if (result instanceof ModelView) {
-    //                             ModelView modelView = (ModelView) result;
-    //                             jsonResponse = gson.toJson(modelView.getData());
-    //                         } else {
-    //                             jsonResponse = gson.toJson(result);
-    //                         }
-
-    //                         // Envoyer la réponse JSON
-    //                         out.print(jsonResponse);
-    //                         out.flush();
-
-    //                 } else {
-    //                         // Gestion normale sans @RestApi
-    //                         Object result = targetMethod.invoke(controllerInstance, params);
-
-    //                         if (result instanceof String) {
-    //                             out.println(
-    //                                     "Resultat de l'execution de la méthode " + " " + m.getMethodName() + " est " + result);
-    //                         } else if (result instanceof ModelView) {
-    //                             ModelView modelView = (ModelView) result;
-    //                             String destinationUrl = modelView.getUrl();
-    //                             HashMap<String, Object> data = modelView.getData();
-    //                             for (String key : data.keySet()) {
-    //                                 request.setAttribute(key, data.get(key));
-    //                             }
-
-    //                             // Dispatch vers la vue JSP
-    //                             RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
-    //                             dispatcher.forward(request, response);
-    //                         } else {
-    //                             out.println("Le type de retour n'est ni un String ni un ModelView");
-    //                         }
-    //                 }
-    //             } else {
-    //                 out.println("Méthode non trouvée : " + m.getMethodName());
-    //             }
-    //         } catch (Exception e) {
-    //             out.println("Erreur lors de l'exécution de la méthode : " + e.getMessage());
-    //         }
-    //     } else {
-    //         out.println("404 NOT FOUND");
-    //     }
-    //     }
-
-
-
-
-  
+    private void displayError(HttpServletResponse response, String errorMessage) throws IOException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<html><body>");
+        out.println("<h1>An error occurred</h1>");
+        out.println("<p>" + errorMessage + "</p>");
+        out.println("</body></html>");
+    }
 }
