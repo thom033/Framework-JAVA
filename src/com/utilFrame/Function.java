@@ -6,11 +6,14 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.annotation.AnnotationController;
+import com.annotation.Get;
 import com.annotation.MappingAnnotation;
+import com.annotation.POST;
 import com.annotation.ParamAnnotation;
 import com.annotation.ParamObjectAnnotation;
 
@@ -47,34 +50,92 @@ public class Function {
         return res;
     }
 
-    public HashMap<String, Mapping> scanControllersMethods(List<String> controllers) throws Exception {
+    public HashMap<String, Mapping> scanControllersMethods(List<Class<?>> controllers) throws Exception {
         HashMap<String, Mapping> res = new HashMap<>();
-        HashMap<String, String> urlMap = new HashMap<>(); // Pour stocker les URL déjà rencontrées
-
-        for (String c : controllers) {
-            Class<?> clazz = Class.forName(c);
-            // get all the methods inside the class
-            Method[] meths = clazz.getDeclaredMethods();
-            for (Method method : meths) {
+        
+        // Parcourir toutes les classes de contrôleurs
+        for (Class<?> controller : controllers) {
+            Method[] methods = controller.getDeclaredMethods();
+            
+            // Parcourir toutes les méthodes d'un contrôleur
+            for (Method method : methods) {
+                // Vérifier si la méthode a l'annotation MappingAnnotation
                 if (method.isAnnotationPresent(MappingAnnotation.class)) {
-                    String url = method.getAnnotation(MappingAnnotation.class).url();
-                    // Vérifier si l'URL est déjà présente dans la map
-                    if (urlMap.containsKey(url)) {
-                        String method_present = urlMap.get(url);
-                        String new_method = clazz.getName() + ":" + method.getName();
-                        throw new Exception("L'URL " + url + " est déjà mappée sur " + method_present
-                                + " et ne peut pas être mappée sur " + new_method + " de nouveau.");
+                    MappingAnnotation mappingAnnotation = method.getAnnotation(MappingAnnotation.class);
+                    String url = mappingAnnotation.url(); // Récupère l'URL de l'annotation
+                    String httpVerb = method.isAnnotationPresent(POST.class) ? "POST" : "GET"; // Vérifie si c'est un POST sinon GET
+                    
+                    // Capture les types des paramètres
+                    Class<?>[] parameterTypes = method.getParameterTypes();
+                    
+                    // Vérifier si l'URL est déjà présente dans le HashMap
+                    if (res.containsKey(url)) {
+                        Mapping existingMapping = res.get(url);
+                        
+                        // Vérifier si cette URL est associée à une autre classe
+                        if (!existingMapping.getClassName().equals(controller.getName())) {
+                            // Si l'URL est associée à une classe différente, on lève une erreur via scanError
+                            throw new Exception("Erreur : L'URL " + url + " est déjà utilisée par la classe " 
+                                                + existingMapping.getClassName() + " et ne peut pas être utilisée par " 
+                                                + controller.getName());
+                        }
+                        
+                        // Si la classe est la même, ajouter l'action à la liste des verbes
+                        existingMapping.addVerbAction(new VerbAction(method.getName(), httpVerb, parameterTypes));
+                        
                     } else {
-                        // Si l'URL n'est pas déjà présente, l'ajouter à la map
-                        urlMap.put(url, clazz.getName() + ":" + method.getName());
-                        // get the annotation
-                        res.put(url, new Mapping(c, method.getName()));
+                        // Si l'URL n'existe pas encore, créer un nouveau mapping
+                        Mapping newMapping = new Mapping();
+                        newMapping.setClassName(controller.getName()); // Définit le nom de la classe
+                        newMapping.addVerbAction(new VerbAction(method.getName(), httpVerb, parameterTypes)); // Ajoute l'action
+                        res.put(url, newMapping); // Ajoute le mapping au HashMap
                     }
                 }
             }
         }
+        
+        // Appel de scanError pour vérifier les erreurs restantes
+        String errorCheck = scanError(res);
+        if (!"ok".equals(errorCheck)) { // Si scanError retourne autre chose que "ok", on lève une exception
+            throw new Exception("Scan error detected: " + errorCheck);
+        }
+        
         return res;
     }
+
+    
+    
+    
+   public String scanError(HashMap<String, Mapping> classe) {
+        String error = "ok";
+     
+        HashMap<String, String> urlToClassMap = new HashMap<>();
+        
+        // Parcours des entrées du HashMap
+        for (Map.Entry<String, Mapping> entry : classe.entrySet()) {
+            String url = entry.getKey();
+            String className = entry.getValue().getClassName();  
+            
+
+            if (urlToClassMap.containsKey(url)) {
+            
+                if (!urlToClassMap.get(url).equals(className)) {
+                    // Erreur : même URL mais classes différentes
+                    error = "Erreur : L'URL " + url + " est utilisée par plusieurs classes (" 
+                            + urlToClassMap.get(url) + " et " + className + ")";
+                    break;
+                }
+            } else {
+               
+                urlToClassMap.put(url, className);
+            }
+        }
+
+        return error;
+    }
+
+    
+
 
     public String getURIWithoutContextPath(HttpServletRequest request) {
         return request.getRequestURI().substring(request.getContextPath().length());
