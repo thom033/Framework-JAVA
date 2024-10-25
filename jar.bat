@@ -10,7 +10,7 @@ set "src=%cd%\src"
 
 REM Set the output directory and JAR file path
 set "OUTPUT_DIR=bin"
-set "JAR_FILE=myLib\framework.jar" manova kely
+set "JAR_FILE=myLib\framework.jar"
 
 REM Compile all .java files in the source directory
 for /R "%src%" %%f in (*.java) do (
