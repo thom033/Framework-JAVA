@@ -11,8 +11,6 @@ public class Main {
                       "http://localhost:8080/admin/users, " +
                       "http://localhost:8080/project/item.";
 
-                      Mody ovaina kely ato indray le modif
-
         // Expression régulière pour trouver les URL et capturer les segments
         String regex = "http://localhost:8080/([^/]+)/([^/]+)";
 
